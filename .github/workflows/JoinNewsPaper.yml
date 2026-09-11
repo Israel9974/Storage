@@ -144,7 +144,7 @@ jobs:
           if [ -f "noticias/noticias_piura.parquet" ]; then
 
             ls -lh \
-              noticias//noticias_piura.parquet
+              noticias/noticias_piura.parquet
 
           else
 
