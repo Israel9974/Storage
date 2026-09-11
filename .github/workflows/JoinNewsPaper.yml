@@ -141,10 +141,10 @@ jobs:
           echo ""
           echo "PIURA:"
           
-          if [ -f "noticias/piura/parquet/noticias_piura.parquet" ]; then
+          if [ -f "noticias/noticias_piura.parquet" ]; then
 
             ls -lh \
-              noticias/piura/parquet/noticias_piura.parquet
+              noticias//noticias_piura.parquet
 
           else
 
@@ -156,10 +156,10 @@ jobs:
           echo ""
           echo "LAMBAYEQUE:"
 
-          if [ -f "noticias/lambayeque/parquet/noticias_lambayeque.parquet" ]; then
+          if [ -f "noticias/noticias_lambayeque.parquet" ]; then
 
             ls -lh \
-              noticias/lambayeque/parquet/noticias_lambayeque.parquet
+              noticias/noticias_lambayeque.parquet
 
           else
 
@@ -209,11 +209,11 @@ jobs:
 
 
           git add \
-            noticias/piura/parquet/noticias_piura.parquet
+            noticias/noticias_piura.parquet
 
 
           git add \
-            noticias/lambayeque/parquet/noticias_lambayeque.parquet
+            noticias/noticias_lambayeque.parquet
 
 
           echo ""
