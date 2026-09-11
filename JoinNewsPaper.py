@@ -3,39 +3,117 @@ import pandas as pd
 
 
 # ============================================================
-# RUTAS
+# CONFIGURACIÓN DE RUTAS
 # ============================================================
 
-ruta_p1 = r'/workspaces/Storage/noticias/piura/parquet'
-ruta_l1 = r'/workspaces/Storage/noticias/lambayeque/parquet'
+BASE_DIR = os.path.dirname(
+    os.path.abspath(__file__)
+)
 
-ruta_output = r'/workspaces/Storage/noticias'
+RUTA_NOTICIAS = os.path.join(
+    BASE_DIR,
+    "noticias"
+)
+
+RUTA_PIURA = os.path.join(
+    RUTA_NOTICIAS,
+    "piura",
+    "parquet"
+)
+
+RUTA_LAMBAYEQUE = os.path.join(
+    RUTA_NOTICIAS,
+    "lambayeque",
+    "parquet"
+)
 
 
 # ============================================================
-# LEER TODOS LOS PARQUET DE UNA CARPETA
+# ARCHIVOS DE SALIDA
 # ============================================================
 
-def leer_parquets(carpeta):
+RUTA_SALIDA_PIURA = os.path.join(
+    RUTA_PIURA,
+    "noticias_piura.parquet"
+)
 
-    dataframes = []
+RUTA_SALIDA_LAMBAYEQUE = os.path.join(
+    RUTA_LAMBAYEQUE,
+    "noticias_lambayeque.parquet"
+)
 
-    archivos = sorted(
-        [
-            archivo
-            for archivo in os.listdir(carpeta)
-            if archivo.lower().endswith(".parquet")
-        ]
-    )
+
+# ============================================================
+# FUNCIÓN PARA LEER TODOS LOS PARQUETS
+# ============================================================
+
+def leer_parquets(carpeta, region):
 
     print()
     print("=" * 60)
-    print(f"CARPETA: {carpeta}")
+    print(f"LEYENDO PARQUETS - {region.upper()}")
     print("=" * 60)
 
+    # --------------------------------------------------------
+    # Verificar carpeta
+    # --------------------------------------------------------
+
+    if not os.path.exists(carpeta):
+
+        print(
+            f"⚠ No existe la carpeta:"
+        )
+
+        print(carpeta)
+
+        return pd.DataFrame()
+
+
+    # --------------------------------------------------------
+    # Buscar archivos Parquet
+    # --------------------------------------------------------
+
+    archivos = []
+
+    for archivo in os.listdir(carpeta):
+
+        if not archivo.lower().endswith(".parquet"):
+            continue
+
+        # No leer el archivo consolidado
+        if archivo == f"noticias_{region}.parquet":
+            continue
+
+        archivos.append(archivo)
+
+
+    archivos.sort()
+
+
     print(
-        f"Parquets encontrados: {len(archivos)}"
+        f"Parquets encontrados: "
+        f"{len(archivos)}"
     )
+
+
+    # --------------------------------------------------------
+    # Si no hay archivos
+    # --------------------------------------------------------
+
+    if not archivos:
+
+        print(
+            "⚠ No hay archivos Parquet."
+        )
+
+        return pd.DataFrame()
+
+
+    # --------------------------------------------------------
+    # Leer archivos
+    # --------------------------------------------------------
+
+    dataframes = []
 
     for archivo in archivos:
 
@@ -44,115 +122,145 @@ def leer_parquets(carpeta):
             archivo
         )
 
+        print()
         print(
             f"Leyendo: {ruta_archivo}"
         )
 
-        df = pd.read_parquet(
-            ruta_archivo
-        )
+        try:
 
-        # ----------------------------------------------------
-        # GUARDAR NOMBRE DEL ARCHIVO ORIGINAL
-        # ----------------------------------------------------
+            df = pd.read_parquet(
+                ruta_archivo
+            )
 
-        df["ARCHIVO_ORIGEN"] = archivo
+            # -----------------------------------------------
+            # Agregar nombre del archivo original
+            # -----------------------------------------------
 
-        dataframes.append(df)
+            df["ARCHIVO_ORIGEN"] = archivo
 
-        print(
-            f"  ✓ {len(df)} filas"
-        )
+            dataframes.append(df)
+
+            print(
+                f"  ✓ {len(df)} filas"
+            )
+
+        except Exception as error:
+
+            print(
+                f"  ✗ ERROR leyendo {archivo}"
+            )
+
+            print(error)
+
+
+    # --------------------------------------------------------
+    # Verificar resultados
+    # --------------------------------------------------------
 
     if not dataframes:
 
+        print()
+        print(
+            "⚠ No se pudo leer ningún Parquet."
+        )
+
         return pd.DataFrame()
 
-    return pd.concat(
+
+    # --------------------------------------------------------
+    # Unir todos los DataFrames
+    # --------------------------------------------------------
+
+    print()
+    print(
+        "Uniendo archivos..."
+    )
+
+    df_final = pd.concat(
         dataframes,
         ignore_index=True
     )
 
 
-# ============================================================
-# NORMALIZAR TIPOS
-# ============================================================
-
-def normalizar_dataframe(df):
-
-    if df.empty:
-        return df
-
-    df = df.copy()
-
     # --------------------------------------------------------
-    # NORMALIZAR DIA
+    # Normalizar columna DIA
     # --------------------------------------------------------
 
-    if "DIA" in df.columns:
+    if "DIA" in df_final.columns:
 
-        df["DIA"] = pd.to_datetime(
-            df["DIA"],
+        print(
+            "Normalizando columna DIA..."
+        )
+
+        df_final["DIA"] = pd.to_datetime(
+            df_final["DIA"],
             errors="coerce"
         )
 
+
     # --------------------------------------------------------
-    # NORMALIZAR COLUMNAS DE TEXTO
+    # Ordenar por fecha
     # --------------------------------------------------------
 
-    columnas_texto = [
-        "DIARIO",
-        "TITULAR",
-        "DESCRIPCIÓN",
-        "LINKS",
-        "ARCHIVO_ORIGEN"
-    ]
+    if "DIA" in df_final.columns:
 
-    for columna in columnas_texto:
+        df_final = df_final.sort_values(
+            by="DIA",
+            ascending=False,
+            na_position="last"
+        ).reset_index(
+            drop=True
+        )
 
-        if columna in df.columns:
 
-            df[columna] = (
-                df[columna]
-                .astype("string")
-            )
+    # --------------------------------------------------------
+    # Mostrar resumen
+    # --------------------------------------------------------
 
-    return df
+    print()
+    print(
+        f"TOTAL DE FILAS: "
+        f"{len(df_final)}"
+    )
+
+    print(
+        f"TOTAL DE COLUMNAS: "
+        f"{len(df_final.columns)}"
+    )
+
+    print()
+    print(
+        "Columnas:"
+    )
+
+    for columna in df_final.columns:
+
+        print(
+            f"  - {columna}"
+        )
+
+
+    return df_final
 
 
 # ============================================================
-# PIURA
+# LEER PIURA
 # ============================================================
 
 df_p = leer_parquets(
-    ruta_p1
-)
-
-df_p = normalizar_dataframe(
-    df_p
+    RUTA_PIURA,
+    "piura"
 )
 
 
 # ============================================================
-# LAMBAYEQUE
+# LEER LAMBAYEQUE
 # ============================================================
 
 df_l = leer_parquets(
-    ruta_l1
-)
-
-df_l = normalizar_dataframe(
-    df_l
-)
-
-
-# ============================================================
-# CREAR CARPETA DE SALIDA
-# ============================================================
-
-os.makedirs(
-    ruta_output,
-    exist_ok=True
+    RUTA_LAMBAYEQUE,
+    "lambayeque"
 )
 
 
@@ -160,84 +268,102 @@ os.makedirs(
 # GUARDAR PIURA
 # ============================================================
 
-ruta_salida_piura = os.path.join(
-    ruta_output,
-    "noticias_piura.parquet"
-)
-
 print()
 print("=" * 60)
 print("GUARDANDO PIURA")
 print("=" * 60)
 
-df_p.to_parquet(
-    ruta_salida_piura,
-    index=False
-)
+if not df_p.empty:
 
-print(
-    f"✓ Guardado: {ruta_salida_piura}"
-)
+    df_p.to_parquet(
+        RUTA_SALIDA_PIURA,
+        index=False
+    )
 
-print(
-    f"✓ Filas: {len(df_p)}"
-)
+    print(
+        "✓ Piura guardado correctamente:"
+    )
+
+    print(
+        RUTA_SALIDA_PIURA
+    )
+
+    print(
+        f"Filas: {len(df_p)}"
+    )
+
+else:
+
+    print(
+        "⚠ No hay datos de Piura para guardar."
+    )
 
 
 # ============================================================
 # GUARDAR LAMBAYEQUE
 # ============================================================
 
-ruta_salida_lambayeque = os.path.join(
-    ruta_output,
-    "noticias_lambayeque.parquet"
-)
-
 print()
 print("=" * 60)
 print("GUARDANDO LAMBAYEQUE")
 print("=" * 60)
 
-df_l.to_parquet(
-    ruta_salida_lambayeque,
-    index=False
-)
+if not df_l.empty:
 
-print(
-    f"✓ Guardado: {ruta_salida_lambayeque}"
-)
+    df_l.to_parquet(
+        RUTA_SALIDA_LAMBAYEQUE,
+        index=False
+    )
 
-print(
-    f"✓ Filas: {len(df_l)}"
-)
+    print(
+        "✓ Lambayeque guardado correctamente:"
+    )
+
+    print(
+        RUTA_SALIDA_LAMBAYEQUE
+    )
+
+    print(
+        f"Filas: {len(df_l)}"
+    )
+
+else:
+
+    print(
+        "⚠ No hay datos de Lambayeque para guardar."
+    )
 
 
 # ============================================================
-# RESUMEN
+# RESUMEN FINAL
 # ============================================================
 
 print()
 print("=" * 60)
-print("PROCESO TERMINADO CORRECTAMENTE")
+print("PROCESO TERMINADO")
 print("=" * 60)
 
+print()
 print(
-    f"Piura:       {len(df_p)} filas"
+    f"Piura:       {len(df_p)} noticias"
 )
 
 print(
-    f"Lambayeque:  {len(df_l)} filas"
+    f"Lambayeque:  {len(df_l)} noticias"
 )
 
 print()
 print(
-    "Archivos creados:"
+    "Archivos consolidados:"
 )
 
 print(
-    ruta_salida_piura
+    RUTA_SALIDA_PIURA
 )
 
 print(
-    ruta_salida_lambayeque
+    RUTA_SALIDA_LAMBAYEQUE
 )
+
+print()
+print("=" * 60)
