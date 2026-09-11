@@ -1,0 +1,163 @@
+name: Consolidar noticias
+
+on:
+
+  # ==========================================================
+  # EJECUTAR CUANDO APAREZCA O CAMBIE UN PARQUET
+  # ==========================================================
+
+  push:
+    paths:
+      - 'noticias/piura/parquet/*.parquet'
+      - 'noticias/lambayeque/parquet/*.parquet'
+
+  # Permitir ejecución manual
+  workflow_dispatch:
+
+
+# ============================================================
+# PERMISOS
+# ============================================================
+
+permissions:
+  contents: write
+
+
+# ============================================================
+# JOB
+# ============================================================
+
+jobs:
+
+  consolidar:
+
+    name: Consolidar Parquet
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # ======================================================
+      # 1. DESCARGAR STORAGE
+      # ======================================================
+
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+
+      # ======================================================
+      # 2. CONFIGURAR PYTHON
+      # ======================================================
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+
+      # ======================================================
+      # 3. INSTALAR DEPENDENCIAS
+      # ======================================================
+
+      - name: Instalar dependencias
+        run: |
+
+          python -m pip install --upgrade pip
+
+          pip install pandas pyarrow
+
+
+      # ======================================================
+      # 4. MOSTRAR PARQUETS DISPONIBLES
+      # ======================================================
+
+      - name: Revisar Parquet
+        run: |
+
+          echo "=========================================="
+          echo "PARQUETS DE PIURA"
+          echo "=========================================="
+
+          find noticias/piura/parquet \
+            -type f \
+            -name "*.parquet" \
+            -print
+
+          echo ""
+          echo "=========================================="
+          echo "PARQUETS DE LAMBAYEQUE"
+          echo "=========================================="
+
+          find noticias/lambayeque/parquet \
+            -type f \
+            -name "*.parquet" \
+            -print
+
+
+      # ======================================================
+      # 5. EJECUTAR CONSOLIDACIÓN
+      # ======================================================
+
+      - name: Consolidar Parquet
+        run: |
+
+          python JoinNewsPaper.py
+
+
+      # ======================================================
+      # 6. MOSTRAR RESULTADOS
+      # ======================================================
+
+      - name: Revisar archivos consolidados
+        run: |
+
+          echo "=========================================="
+          echo "ARCHIVOS CONSOLIDADOS"
+          echo "=========================================="
+
+          ls -lh noticias/*.parquet
+
+
+      # ======================================================
+      # 7. CONFIGURAR GIT
+      # ======================================================
+
+      - name: Configurar Git
+        run: |
+
+          git config user.name \
+            "github-actions[bot]"
+
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+
+      # ======================================================
+      # 8. GUARDAR CONSOLIDADOS
+      # ======================================================
+
+      - name: Guardar consolidado
+        run: |
+
+          echo "=========================================="
+          echo "GUARDANDO CAMBIOS"
+          echo "=========================================="
+
+          git add noticias/noticias_piura.parquet
+          git add noticias/noticias_lambayeque.parquet
+
+          if git diff --cached --quiet; then
+
+            echo "No hay cambios para guardar."
+
+          else
+
+            git commit \
+              -m "Actualizar Parquet consolidados"
+
+            git push
+
+            echo "=========================================="
+            echo "✓ CONSOLIDADOS ACTUALIZADOS"
+            echo "=========================================="
+
+          fi
