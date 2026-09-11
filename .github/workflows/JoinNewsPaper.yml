@@ -1,17 +1,21 @@
-name: Consolidar noticias
+name: Guardar y consolidar datos en Storage
 
 on:
 
   # ==========================================================
-  # EJECUTAR CUANDO APAREZCA O CAMBIE UN PARQUET
+  # EJECUTAR CUANDO TERMINE PRUEBA VIERNES
   # ==========================================================
 
-  push:
-    paths:
-      - 'noticias/piura/parquet/*.parquet'
-      - 'noticias/lambayeque/parquet/*.parquet'
+  workflow_run:
+    workflows:
+      - "Prueba Viernes"
+    types:
+      - completed
 
-  # Permitir ejecución manual
+  # ==========================================================
+  # EJECUCIÓN MANUAL
+  # ==========================================================
+
   workflow_dispatch:
 
 
@@ -29,15 +33,23 @@ permissions:
 
 jobs:
 
-  consolidar:
+  guardar-storage:
 
-    name: Consolidar Parquet
+    # ========================================================
+    # EJECUTAR SOLO SI PRUEBA VIERNES TERMINÓ CORRECTAMENTE
+    # ========================================================
+
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+
     runs-on: ubuntu-latest
+
 
     steps:
 
       # ======================================================
-      # 1. DESCARGAR STORAGE
+      # 1. DESCARGAR REPOSITORIO
       # ======================================================
 
       - name: Descargar repositorio
@@ -63,48 +75,283 @@ jobs:
 
           python -m pip install --upgrade pip
 
-          pip install pandas pyarrow
+          pip install pandas pyarrow openpyxl
 
 
       # ======================================================
-      # 4. MOSTRAR PARQUETS DISPONIBLES
+      # 4. REVISAR ARCHIVOS GENERADOS EN DATA
       # ======================================================
 
-      - name: Revisar Parquet
+      - name: Revisar archivos generados
         run: |
 
           echo "=========================================="
-          echo "PARQUETS DE PIURA"
+          echo "ARCHIVOS EN DATA"
           echo "=========================================="
 
-          find noticias/piura/parquet \
-            -type f \
-            -name "*.parquet" \
-            -print
+          if [ -d "Data" ]; then
 
-          echo ""
-          echo "=========================================="
-          echo "PARQUETS DE LAMBAYEQUE"
-          echo "=========================================="
+            find Data -type f -print
 
-          find noticias/lambayeque/parquet \
-            -type f \
-            -name "*.parquet" \
-            -print
+          else
+
+            echo "⚠ No existe la carpeta Data"
+
+          fi
 
 
       # ======================================================
-      # 5. EJECUTAR CONSOLIDACIÓN
+      # 5. CLONAR STORAGE
+      # ======================================================
+
+      - name: Descargar repositorio Storage
+        env:
+          STORAGE_TOKEN: ${{ secrets.STORAGE_TOKEN }}
+
+        run: |
+
+          echo "=========================================="
+          echo "DESCARGANDO STORAGE"
+          echo "=========================================="
+
+          git clone \
+            https://x-access-token:${STORAGE_TOKEN}@github.com/Israel9974/Storage.git \
+            storage_repo
+
+          echo "✓ Storage descargado correctamente."
+
+
+      # ======================================================
+      # 6. CREAR ESTRUCTURA DE CARPETAS
+      # ======================================================
+
+      - name: Crear estructura de Storage
+        run: |
+
+          echo "=========================================="
+          echo "CREANDO ESTRUCTURA"
+          echo "=========================================="
+
+          mkdir -p storage_repo/noticias/piura/excel
+          mkdir -p storage_repo/noticias/piura/parquet
+
+          mkdir -p storage_repo/noticias/lambayeque/excel
+          mkdir -p storage_repo/noticias/lambayeque/parquet
+
+          echo "✓ Estructura preparada."
+
+
+      # ======================================================
+      # 7. COPIAR EXCEL DE PIURA
+      # ======================================================
+
+      - name: Copiar Excel de Piura
+        run: |
+
+          echo "=========================================="
+          echo "EXCEL - PIURA"
+          echo "=========================================="
+
+          if [ -d "Data/Piura" ]; then
+
+            find Data/Piura \
+              -maxdepth 1 \
+              -type f \
+              -name "*.xlsx" \
+              -exec cp {} storage_repo/noticias/piura/excel/ \;
+
+            echo "✓ Excel de Piura copiado."
+
+          else
+
+            echo "⚠ No existe Data/Piura."
+
+          fi
+
+
+      # ======================================================
+      # 8. COPIAR PARQUET DE PIURA
+      # ======================================================
+
+      - name: Copiar Parquet de Piura
+        run: |
+
+          echo "=========================================="
+          echo "PARQUET - PIURA"
+          echo "=========================================="
+
+          if [ -d "Data/Piura" ]; then
+
+            find Data/Piura \
+              -type f \
+              -name "*.parquet" \
+              -exec cp {} storage_repo/noticias/piura/parquet/ \;
+
+            echo "✓ Parquet de Piura copiado."
+
+          else
+
+            echo "⚠ No existe Data/Piura."
+
+          fi
+
+
+      # ======================================================
+      # 9. COPIAR EXCEL DE LAMBAYEQUE
+      # ======================================================
+
+      - name: Copiar Excel de Lambayeque
+        run: |
+
+          echo "=========================================="
+          echo "EXCEL - LAMBAYEQUE"
+          echo "=========================================="
+
+          if [ -d "Data/Lambayeque" ]; then
+
+            find Data/Lambayeque \
+              -maxdepth 1 \
+              -type f \
+              -name "*.xlsx" \
+              -exec cp {} storage_repo/noticias/lambayeque/excel/ \;
+
+            echo "✓ Excel de Lambayeque copiado."
+
+          else
+
+            echo "⚠ No existe Data/Lambayeque."
+
+          fi
+
+
+      # ======================================================
+      # 10. COPIAR PARQUET DE LAMBAYEQUE
+      # ======================================================
+
+      - name: Copiar Parquet de Lambayeque
+        run: |
+
+          echo "=========================================="
+          echo "PARQUET - LAMBAYEQUE"
+          echo "=========================================="
+
+          if [ -d "Data/Lambayeque" ]; then
+
+            find Data/Lambayeque \
+              -type f \
+              -name "*.parquet" \
+              -exec cp {} storage_repo/noticias/lambayeque/parquet/ \;
+
+            echo "✓ Parquet de Lambayeque copiado."
+
+          else
+
+            echo "⚠ No existe Data/Lambayeque."
+
+          fi
+
+
+      # ======================================================
+      # 11. COPIAR JoinNewsPaper.py
+      # ======================================================
+
+      - name: Copiar JoinNewsPaper.py
+        run: |
+
+          echo "=========================================="
+          echo "ACTUALIZANDO JoinNewsPaper.py"
+          echo "=========================================="
+
+          if [ -f "JoinNewsPaper.py" ]; then
+
+            cp JoinNewsPaper.py \
+              storage_repo/JoinNewsPaper.py
+
+            echo "✓ JoinNewsPaper.py actualizado."
+
+          else
+
+            echo "⚠ No existe JoinNewsPaper.py."
+
+          fi
+
+
+      # ======================================================
+      # 12. MOSTRAR PARQUETS ANTES DE CONSOLIDAR
+      # ======================================================
+
+      - name: Revisar Parquet antes de consolidar
+        run: |
+
+          echo "=========================================="
+          echo "PARQUETS ANTES DE CONSOLIDAR"
+          echo "=========================================="
+
+          echo ""
+          echo "PIURA:"
+          echo "------------------------------------------"
+
+          if [ -d "storage_repo/noticias/piura/parquet" ]; then
+
+            find storage_repo/noticias/piura/parquet \
+              -maxdepth 1 \
+              -type f \
+              -name "*.parquet" \
+              -print
+
+          else
+
+            echo "No existe la carpeta."
+
+          fi
+
+
+          echo ""
+          echo "LAMBAYEQUE:"
+          echo "------------------------------------------"
+
+          if [ -d "storage_repo/noticias/lambayeque/parquet" ]; then
+
+            find storage_repo/noticias/lambayeque/parquet \
+              -maxdepth 1 \
+              -type f \
+              -name "*.parquet" \
+              -print
+
+          else
+
+            echo "No existe la carpeta."
+
+          fi
+
+
+      # ======================================================
+      # 13. EJECUTAR CONSOLIDACIÓN
       # ======================================================
 
       - name: Consolidar Parquet
+        working-directory: storage_repo
         run: |
 
-          python JoinNewsPaper.py
+          echo "=========================================="
+          echo "CONSOLIDANDO PARQUETS"
+          echo "=========================================="
+
+          if [ -f "JoinNewsPaper.py" ]; then
+
+            python JoinNewsPaper.py
+
+          else
+
+            echo "✗ No existe JoinNewsPaper.py"
+
+            exit 1
+
+          fi
 
 
       # ======================================================
-      # 6. MOSTRAR RESULTADOS
+      # 14. MOSTRAR ARCHIVOS CONSOLIDADOS
       # ======================================================
 
       - name: Revisar archivos consolidados
@@ -114,14 +361,50 @@ jobs:
           echo "ARCHIVOS CONSOLIDADOS"
           echo "=========================================="
 
-          ls -lh noticias/*.parquet
+          echo ""
+          echo "PIURA:"
+          echo "------------------------------------------"
+
+          if [ -d "storage_repo/noticias/piura/parquet" ]; then
+
+            find storage_repo/noticias/piura/parquet \
+              -maxdepth 1 \
+              -type f \
+              -name "*.parquet" \
+              -print
+
+          else
+
+            echo "No existe noticias/piura/parquet"
+
+          fi
+
+
+          echo ""
+          echo "LAMBAYEQUE:"
+          echo "------------------------------------------"
+
+          if [ -d "storage_repo/noticias/lambayeque/parquet" ]; then
+
+            find storage_repo/noticias/lambayeque/parquet \
+              -maxdepth 1 \
+              -type f \
+              -name "*.parquet" \
+              -print
+
+          else
+
+            echo "No existe noticias/lambayeque/parquet"
+
+          fi
 
 
       # ======================================================
-      # 7. CONFIGURAR GIT
+      # 15. CONFIGURAR GIT
       # ======================================================
 
       - name: Configurar Git
+        working-directory: storage_repo
         run: |
 
           git config user.name \
@@ -132,32 +415,92 @@ jobs:
 
 
       # ======================================================
-      # 8. GUARDAR CONSOLIDADOS
+      # 16. REVISAR CAMBIOS
       # ======================================================
 
-      - name: Guardar consolidado
+      - name: Revisar cambios
+        working-directory: storage_repo
+        run: |
+
+          echo "=========================================="
+          echo "CAMBIOS DETECTADOS"
+          echo "=========================================="
+
+          git status --short
+
+
+      # ======================================================
+      # 17. GUARDAR TODO EN STORAGE
+      # ======================================================
+
+      - name: Guardar cambios en Storage
+        working-directory: storage_repo
         run: |
 
           echo "=========================================="
           echo "GUARDANDO CAMBIOS"
           echo "=========================================="
 
-          git add noticias/noticias_piura.parquet
-          git add noticias/noticias_lambayeque.parquet
+          git add noticias/
+          git add JoinNewsPaper.py
 
           if git diff --cached --quiet; then
 
-            echo "No hay cambios para guardar."
+            echo ""
+            echo "No hay archivos nuevos o modificados."
+            echo ""
 
           else
 
+            echo ""
+            echo "Cambios que serán guardados:"
+            echo ""
+
+            git diff --cached --stat
+
+            echo ""
+
             git commit \
-              -m "Actualizar Parquet consolidados"
+              -m "Actualizar y consolidar noticias"
 
-            git push
+            git push origin main
 
+            echo ""
             echo "=========================================="
-            echo "✓ CONSOLIDADOS ACTUALIZADOS"
+            echo "✓ STORAGE ACTUALIZADO"
             echo "=========================================="
 
           fi
+
+
+      # ======================================================
+      # 18. RESUMEN FINAL
+      # ======================================================
+
+      - name: Resumen final
+        run: |
+
+          echo ""
+          echo "=========================================="
+          echo "PROCESO TERMINADO"
+          echo "=========================================="
+
+          echo ""
+          echo "Storage contiene:"
+
+          echo ""
+          echo "Piura:"
+          find storage_repo/noticias/piura \
+            -type f \
+            -name "*.parquet" \
+            -print
+
+          echo ""
+          echo "Lambayeque:"
+          find storage_repo/noticias/lambayeque \
+            -type f \
+            -name "*.parquet" \
+            -print
+
+          echo ""
+          echo "=========================================="
