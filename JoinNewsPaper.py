@@ -33,12 +33,12 @@ RUTA_LAMBAYEQUE = os.path.join(
 # ============================================================
 
 RUTA_SALIDA_PIURA = os.path.join(
-    RUTA_PIURA,
+    RUTA_NOTICIAS,
     "noticias_piura.parquet"
 )
 
 RUTA_SALIDA_LAMBAYEQUE = os.path.join(
-    RUTA_LAMBAYEQUE,
+    RUTA_NOTICIAS,
     "noticias_lambayeque.parquet"
 )
 
